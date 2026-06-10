@@ -1,0 +1,7 @@
+__pycache__
+env
+credentials.json
+token.json
+emails.db
+emails.db-journal
+*.zip
