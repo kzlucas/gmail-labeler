@@ -31,7 +31,7 @@ Note that it's not intended to live classify emails as they arrive, but rather t
 
 - At least 2GB of free disk space for the SQLite database, model and embeddings (more if your Email Box is huge).
 
-- 2GB of VRAM.
+- 8GB VRAM on dedicated GPU
 
 ## Install
 
@@ -47,7 +47,7 @@ Crearte a virtual environment and install the required Python packages using the
 
 `ollama pull nomic-embed-text`
 
-`ollama pull qwen3:4b`
+`ollama pull qwen3:8b`
 
 You can also use bigger models available in the Ollama library to get more accurate results, but make sure to update the model names in the code accordingly.
 
@@ -59,11 +59,12 @@ You can also use bigger models available in the Ollama library to get more accur
     This command will fetch emails from your Gmail account within the specified date range, extract their features, and store them in a local SQLite database. If no arguments are provided, it will fetch all emails. Use `python main.py build-db --help` for more options. The processing rate is about 1200 emails per minutes.
 
 
-- **Step 2**: Run `python main.py get-embeddings` 
-     This command will generate embeddings ("vectors") for the emails stored in the database using the Ollama model and update the database with these embeddings.
+- **Step 2**: *(optional) Recommanded above 100.000 emails.* 
+     Run `python main.py get-embeddings`
+     This command will generate embeddings ("vectors") for the emails stored in the database using the Ollama model and update the database with these embeddings. This step is optional if you don't want to use clustering and just want to classify emails one-by-one, but it will significantly improve the classification speed if you have a large number of emails, with a lot of them being similar to each other (e.g. newsletters, notifications, etc...). 
 
-- **Step 3**: Run `python main.py classify`
-    This command will classify the emails into clusters based on their embeddings and update the database with the cluster labels.
+- **Step 3**: Run `python main.py classify --drop-existing --skip-clusters`
+    This command will classify the emails into Categories list.
 
 - **Step 4**: Verify the generated labels and clusters in the database are suitable for your needs. You can use tools like DB Browser for SQLite to inspect the `emails.db` file and see the classifications.
 
@@ -80,17 +81,15 @@ CATEGORIES = [
     # High value
 
     "personal conversation",
-    "project discussion and work communication",
+    "projects discussion",
     "financial statement",
     "receipt and invoice",
-    "tax document",
     "travel tickets",
     "booking confirmation",
     "purchase confirmation",
-    "shipping update",
     "appointment confirmation",
+    "shipping update",
     "security alert and verification",
-    "password reset",
 
     # Medium value
 
@@ -99,7 +98,8 @@ CATEGORIES = [
     "account notification",
     "job alert",
     "event invitation",
-    "appointment reminder",
+    "reminders",
+    "password reset",
 
     # Usually low value
 
@@ -109,6 +109,7 @@ CATEGORIES = [
     "product announcement",
     "promotional offer",
     "survey and feedback request",
+    "junk",
 
     # Legal / compliance
 
@@ -140,7 +141,7 @@ CATEGORIES = [
 - `get-embeddings`: Generate embeddings for all emails in the database. This process can take some time depending on the number of emails and the model used for generating embeddings.
 - `classify`: Classify emails into clusters based on their embeddings.
   - `--drop-existing`: Optional flag to drop existing classifications and clusters before classifying.
-
+  - `--skip-clusters`: Optional flag to skip cluster generation and only classify emails one-by-one.
 
 ## Credits
 

@@ -20,6 +20,7 @@ def main():
     # classify command
     classify_parser = subparsers.add_parser('classify', help='Classify emails')
     classify_parser.add_argument('--drop-existing', action='store_true', help='Drop existing classification and clusters before classifying')
+    classify_parser.add_argument('--skip-clusters', action='store_true', help='Skip cluster generation and only classify emails one-by-one')
     
     # apply-labels command
     apply_labels_parser = subparsers.add_parser('apply-labels', help='Apply labels to emails in Gmail')
@@ -45,7 +46,7 @@ def main():
         
     elif args.command == 'classify':
         print(f"Classifying...")
-        classifier.run()
+        classifier.run(SKIP_CLUSTERS=args.skip_clusters, DROP_EXISTING=args.drop_existing)
     else:
         print("--" * 20)
         print("Use [command] --help for more information on a command and its arguments.")

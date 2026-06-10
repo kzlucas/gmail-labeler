@@ -6,23 +6,20 @@ import re
 import numpy as np
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import normalize
-import hdbscan
 
 CATEGORIES = [
-    # High value - almost never delete
+    # High value
 
     "personal conversation",
-    "project discussion and work communication",
+    "projects discussion",
     "financial statement",
     "receipt and invoice",
-    "tax document",
     "travel tickets",
     "booking confirmation",
     "purchase confirmation",
-    "shipping update",
     "appointment confirmation",
+    "shipping update",
     "security alert and verification",
-    "password reset",
 
     # Medium value
 
@@ -31,7 +28,8 @@ CATEGORIES = [
     "account notification",
     "job alert",
     "event invitation",
-    "appointment reminder",
+    "reminders",
+    "password reset",
 
     # Usually low value
 
@@ -41,6 +39,7 @@ CATEGORIES = [
     "product announcement",
     "promotional offer",
     "survey and feedback request",
+    "junk",
 
     # Legal / compliance
 
@@ -60,54 +59,6 @@ CATEGORIES = [
     "other"
 ]
 
-def cosine_similarity(a, b):
-    a = np.array(a)
-    b = np.array(b)
-
-    return np.dot(a, b) / (
-        np.linalg.norm(a) * np.linalg.norm(b)
-    )
-
-
-
-def compare_embedding_single(target_gmail_id, embeddings):
-    target_mail = dbdriver.get_email_by_id(target_gmail_id)
-    target_embedding = embeddings[target_gmail_id]
-    scores = []
-    
-    # find nearest emails by cosine similarity
-    for gmail_id, other_embedding in embeddings.items():
-
-        if gmail_id == target_gmail_id:
-            continue
-
-        score = cosine_similarity(
-            target_embedding,
-            other_embedding
-        )
-
-        scores.append(
-            (score, gmail_id)
-        )
-    scores.sort(reverse=True)
-
-    # print top X similar emails
-    print("For email:")
-    print("--" * 20)
-    print(f"{target_gmail_id} | {target_mail[1]} | {target_mail[2]}") 
-    print("--" * 20)
-    print("Similar emails:")
-    
-    for score, gmail_id in scores[:10]:
-
-        row = dbdriver.get_email_by_id(gmail_id)
-        print(
-            f"{score:.3f}",
-            row[0],
-            row[1],
-            row[2],
-        )
-    
 
 
 def gen_clusters(embeddings):
@@ -126,11 +77,12 @@ def gen_clusters(embeddings):
     X = np.array(vectors)
     X = normalize(X)
             
-    clusterer = hdbscan.HDBSCAN(
-        min_cluster_size=10,
-        metric='euclidean'
+    clustering = DBSCAN(
+        eps=0.1,
+        min_samples=15,
+        metric="cosine"
     )
-    labels = clusterer.fit_predict(X)
+    labels = clustering.fit_predict(X)
     
     
     clusters = []
@@ -202,9 +154,7 @@ def get_embeddings():
     def get_embedding(gmail_id, sender, subject, snippet):
 
         text = f"""
-                Sender: {sender}
-                Subject: {subject}
-                Snippet: {snippet[:500]}
+                {subject}
                 """
 
         response = ollama.embed(
@@ -233,25 +183,46 @@ def get_embeddings():
 
 def gen_label_for_email(email):
     t0 = time.time()
-    prompt = f"""
-        Return ONLY ONE category from the following list.
-        Output only the label without any explanation, comment or text decoration. The label must be picked from the list.
-        
-        {json.dumps(CATEGORIES, indent=4)}  
 
-        Here is the email to classify:
+    content = f"""
+        Classify this email into one of the categories.
 
         Sender: {email[1]}
         Subject: {email[2]}
         Snippet: {email[3]}
     """
-    
+
     response = ollama.chat(
-        model="qwen3:4b",
-        messages=[{"role": "user","content": prompt}],
-        think=False
+        model="qwen3:8b",
+        messages=  [  
+            {
+                "role":"system",
+                 "content": "You are an email classifier"
+            },
+            {
+                "role":"user",
+                 "content": content
+            }
+        ],
+        think=False,
+        format={
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "enum": CATEGORIES
+                }
+            },
+            "required": ["label"]
+        },
+        options={
+            "temperature": 0,
+            "seed": 42
+        },
+        keep_alive="30m"
     )
-    label = response.message.content.strip()
+
+    label = json.loads(response.message.content)["label"]
     print(f"       -------- {email[0]} > Generated label: {label} in {time.time() - t0:.2f} seconds")
     return label
     
@@ -259,63 +230,88 @@ def gen_label_for_email(email):
     
 def gen_label_for_cluster(cluster):
     t0 = time.time()
-    prompt = f"""
-        Return ONLY ONE category from the following list.
-        Output only the label without any explanation, comment or text decoration. The label must be picked from the list.
 
-        {json.dumps(CATEGORIES, indent=4)}
+    content = f"""
+        Classify this email into one of the categories.
 
-        Here is the data for this email cluster:
-
-        - Content: {json.dumps(cluster['email_samples'], indent=4)}
-        
+        {json.dumps(cluster['email_samples'][0], indent=4)}
     """
-    
+
     print("--" * 20)
     print(f"Generating label for cluster {cluster['label']} with size {cluster['size']}...")
+
+
     response = ollama.chat(
-        model="qwen3:4b",
-        messages=[{"role": "user","content": prompt}],
-        think=False
+        model="qwen3:8b",
+        messages=  [  
+            {
+                "role":"system",
+                 "content": "You are an email classifier"
+            },
+            {
+                "role":"user",
+                 "content": content
+            }
+        ],
+        think=False,
+        format={
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "enum": CATEGORIES
+                }
+            },
+            "required": ["label"]
+        },
+        options={
+            "temperature": 0,
+            "seed": 42
+        },
+        keep_alive="30m"
     )
-    label = response.message.content.strip()
-    print(f"<<{label}>> ----- Label generated in {time.time() - t0:.2f} seconds")
+
+    label = json.loads(response.message.content)["label"]
+    print(f"       -------- {cluster['label']} > Generated label: {label} in {time.time() - t0:.2f} seconds")
     return label
 
 
 
 
-
-def run(DROP_EXISTING=False):
+def run(
+        DROP_EXISTING=False,
+        SKIP_CLUSTERS=False
+    ):
     dbdriver.drop_clusters_db_if_exists()
     if DROP_EXISTING: dbdriver.drop_classification_from_emails()
 
     # cluster emails based on embeddings similarity
     #--
-    print("")
-    print("")
-    print("--" * 20)
-    print("Clustering emails based on embeddings similarity")
-    print("processing...")
-    dbdriver.create_clusters_db()
-    clusters = gen_clusters(dbdriver.get_all_embeddings())
-    clusters_count = len(clusters)
-    cluster_index = 0
-    for cluster in clusters:
-        if cluster['label'] == -1: continue # misc category, skip
-        cluster_index += 1
+    if not SKIP_CLUSTERS:
+        print("")
+        print("")
         print("--" * 20)
-        print(f"{cluster_index}/{clusters_count} > Cluster {cluster['label']} | Size: {cluster['size']}")
-        for email in cluster["email_samples"][:3]:
-            print(f"{email['sender']} | {email['subject']}")
-        label = gen_label_for_cluster(cluster)
-        dbdriver.upsert_cluster(cluster)
-        print(f"Cluster {cluster['label']} labeled as <<{label}>>")
-        print("--" * 20)
-        print()
-        
-        for gmail_id in cluster["emails_ids"]:
-            dbdriver.update_email_classification(gmail_id, label)
+        print("Clustering emails based on embeddings similarity")
+        print("processing...")
+        dbdriver.create_clusters_db()
+        clusters = gen_clusters(dbdriver.get_all_embeddings())
+        clusters_count = len(clusters)
+        cluster_index = 0
+        for cluster in clusters:
+            if cluster['label'] == -1: continue # misc category, skip
+            cluster_index += 1
+            print("--" * 20)
+            print(f"{cluster_index}/{clusters_count} > Cluster {cluster['label']} | Size: {cluster['size']}")
+            for email in cluster["email_samples"][:3]:
+                print(f"{email['sender']} | {email['subject']}")
+            label = gen_label_for_cluster(cluster)
+            dbdriver.upsert_cluster(cluster)
+            print(f"Cluster {cluster['label']} labeled as <<{label}>>")
+            print("--" * 20)
+            print()
+            
+            for gmail_id in cluster["emails_ids"]:
+                dbdriver.update_email_classification(gmail_id, label)
 
 
 

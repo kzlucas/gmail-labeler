@@ -55,6 +55,8 @@ def run():
                 
         label = re.sub('<[^<]+?>', '', label) # strip html tags if any
         label = label.replace("*", "").strip()
+        label = label.replace("\"", "").strip()
+        label = label.replace("\'", "").strip()
         label = "_" + label # prefix to clearly distinguish from user created labels in gmail and avoid naming conflicts
         print(f"{processed_count}/{len(emails)} > Applying label <<{label}>> to email with id {gmail_id}...")
         
