@@ -14,11 +14,12 @@ def main():
     build_db_parser.add_argument('--batches-count', type=int, help='Limit max number of fetch batches')
     build_db_parser.add_argument('--batches-size', type=int, help='Limit number of emails per batch. Default is 20')
     
-    # classify command
-    classify_parser = subparsers.add_parser('classify', help='Classify emails')
-    
     # get_embeddings command
     get_embeddings_parser = subparsers.add_parser('get-embeddings', help='Get emails embeddings')
+    
+    # classify command
+    classify_parser = subparsers.add_parser('classify', help='Classify emails')
+    classify_parser.add_argument('--drop-existing', action='store_true', help='Drop existing classification and clusters before classifying')
     
     # apply-labels command
     apply_labels_parser = subparsers.add_parser('apply-labels', help='Apply labels to emails in Gmail')

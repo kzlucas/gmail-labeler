@@ -17,7 +17,7 @@ def create_emails_db():
         confidence REAL,
         size INTEGER,
         date TEXT,
-        safe_delete BOOLEAN,
+        safe_delete BOOLEAN
     )
     """)
 
@@ -117,6 +117,27 @@ def get_emails(limit=100, offset=0):
     
     return cursor.fetchall()
 
+    
+def drop_classification_from_emails():
+    db = sqlite3.connect("emails.db")
+
+    db.execute("""
+    UPDATE emails
+    SET classification = NULL, confidence = NULL
+    """)
+    db.commit()
+    
+def get_unclassified_emails():
+    db = sqlite3.connect("emails.db")
+
+    cursor = db.execute("""
+    SELECT gmail_id, sender, subject, snippet, body, classification, confidence, size, date, safe_delete
+    FROM emails
+    WHERE classification IS NULL
+    """)
+    
+    return cursor.fetchall()
+
 
 def get_total_emails_count():
     db = sqlite3.connect("emails.db")
@@ -139,7 +160,7 @@ def create_embeddings_db():
                 FOREIGN KEY (gmail_id) REFERENCES emails(gmail_id)
             );
     """)
-    
+    db.commit()
     
 def upsert_embedding(gmail_id, embedding):
     db = sqlite3.connect("emails.db")
@@ -171,6 +192,14 @@ def get_all_embeddings():
     return cursor.fetchall()
 
 
+def drop_clusters_db_if_exists():
+    db = sqlite3.connect("emails.db")
+
+    db.execute("""
+    DROP TABLE IF EXISTS clusters
+    """)
+    db.commit()
+
 
 def create_clusters_db():
     db = sqlite3.connect("emails.db")
@@ -183,6 +212,7 @@ def create_clusters_db():
                 emails_ids TEXT
             );
     """)
+    db.commit()
 
 
 def upsert_cluster(cluster):
