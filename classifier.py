@@ -247,7 +247,7 @@ def gen_label_for_email(email):
     """
     
     response = ollama.chat(
-        model="qwen3:1.7b",
+        model="qwen3:4b",
         messages=[{"role": "user","content": prompt}],
         think=False
     )
@@ -274,7 +274,7 @@ def gen_label_for_cluster(cluster):
     print("--" * 20)
     print(f"Generating label for cluster {cluster['label']} with size {cluster['size']}...")
     response = ollama.chat(
-        model="qwen3:1.7b",
+        model="qwen3:4b",
         messages=[{"role": "user","content": prompt}],
         think=False
     )
@@ -332,7 +332,9 @@ def run(DROP_EXISTING=False):
     for email in emails:
         gmail_id, sender, subject, snippet, body, classification, confidence, size, date, safe_delete = email
         processed_count += 1
-        print(f"{processed_count}/{total_emails} - {gmail_id} > Classifying email with id ...")
-        
+        pct_done = (processed_count / total_emails) * 100
+        pct_done_str = f"{pct_done:.2f}%"
+        print("")
+        print(f"{pct_done_str} %  ({processed_count}/{total_emails})")
         label = gen_label_for_email(email)
         dbdriver.update_email_classification(gmail_id, label)

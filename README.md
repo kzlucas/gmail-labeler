@@ -47,7 +47,7 @@ Crearte a virtual environment and install the required Python packages using the
 
 `ollama pull nomic-embed-text`
 
-`ollama pull qwen3:1.7b`
+`ollama pull qwen3:4b`
 
 You can also use bigger models available in the Ollama library to get more accurate results, but make sure to update the model names in the code accordingly.
 

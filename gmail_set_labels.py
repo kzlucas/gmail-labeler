@@ -5,6 +5,7 @@ import pprint
 import dbdriver
 from os import path
 from google_auth_oauthlib.flow import InstalledAppFlow
+import re
 
 def run():
 
@@ -39,6 +40,7 @@ def run():
     for label in labels_response.get('labels', []):
         existing_labels.append((label["name"], label["id"]))
 
+    # get all emails from db and apply labels to them in gmail
     emails = dbdriver.get_emails(-1)
     processed_count = 0
     for email in emails:
@@ -51,8 +53,9 @@ def run():
             or label.strip().lower() == "unknown" \
                 : continue
                 
+        label = re.sub('<[^<]+?>', '', label) # strip html tags if any
         label = label.replace("*", "").strip()
-        label = "__" + label
+        label = "_" + label # prefix to clearly distinguish from user created labels in gmail and avoid naming conflicts
         print(f"{processed_count}/{len(emails)} > Applying label <<{label}>> to email with id {gmail_id}...")
         
         # call google api to create label if not exists and get label id
