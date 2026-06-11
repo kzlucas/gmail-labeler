@@ -76,9 +76,12 @@ def run():
             existing_labels.append((label, label_id))
             
         # call google api to apply label to email
-        gmail.users().messages().modify(userId='me', id=gmail_id, body={
-            "addLabelIds": [label_id]
-        }).execute()
-        
+        try:
+            gmail.users().messages().modify(userId='me', id=gmail_id, body={
+                "addLabelIds": [label_id]
+            }).execute()
+        except Exception as e:
+            print(f"Error applying label to email with id {gmail_id}: {e}")
+            continue
         
         
